@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ESP32 Environment Monitor</title>
+    <style>
+        :root {
+            --primary-color: #6EB7FF;
+            --card-bg: #FFF;
+            --body-bg: #F5F5F5;
+            --text-color: #333;
+            --border-radius: 10px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: var(--body-bg);
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+        
+        .data-container {
+            display: flex;
+            flex-direction: column;
+            width: 95%;
+            margin: 15px auto;
+            padding: 15px;
+            background-color: var(--card-bg);
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+            gap: 10px;
+        }
+        
+        .data-row {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 0;
+            gap: 10px;
+        }
+        
+        .data-item {
+            text-align: center;
+            width: 100%;
+            margin: 0;
+            padding: 15px 10px;
+            border-radius: var(--border-radius);
+            background-color: #f9f9f9;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .data-item h1, .data-item h2, .data-item h3, .data-item h4 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .data-item p {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 8px 0;
+        }
+        
+        .data-item small {
+            display: block;
+            margin-top: 5px;
+            font-size: 11px;
+            color: #888;
+        }
+        
+        .data-head {
+            margin: auto;
+            width: 95%;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 15px auto;
+            padding: 15px;
+            background-color: var(--card-bg);
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+        }
+        
+        .charts-section {
+            width: 95%;
+            margin: 15px auto;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            text-align: center;
+            color: var(--text-color);
+        }
+        
+        .chart-row {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin: 10px 0;
+            gap: 15px;
+        }
+        
+        .chart-container {
+            width: 100%;
+            background-color: var(--card-bg);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            margin-bottom: 0;
+            height: 250px;
+        }
+        
+        .chart-container-full {
+            width: 100%;
+            background-color: var(--card-bg);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            margin-bottom: 15px;
+            height: 300px;
+        }
+        
+        .table-container {
+            width: 95%;
+            margin: 15px auto;
+            background-color: var(--card-bg);
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        
+        table th, table td {
+            padding: 10px 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+        }
+        
+        table th {
+            background-color: var(--primary-color);
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        
+        table tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        .current-time {
+            position: fixed;
+            top: 5px;
+            right: 5px;
+            background-color: var(--card-bg);
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-color);
+            z-index: 9999;
+        }
+        
+        .alert {
+            color: red;
+            font-weight: bold;
+        }
+        
+        .normal {
+            color: green;
+        }
+        
+        .temp-hum-row .data-item {
+            background-color: #e8f4ff;
+        }
+        
+        .dust-gas-row .data-item {
+            background-color: #fff0e8;
+        }
+        
+        /* Desktop styles */
+        @media (min-width: 768px) {
+            .data-row {
+                flex-direction: row;
+                justify-content: space-between;
+                margin-bottom: 15px;
+            }
+            
+            .data-item {
+                flex: 1;
+                min-width: 200px;
+                margin: 0 5px;
+            }
+            
+            .chart-row {
+                flex-direction: row;
+            }
+            
+            .chart-container {
+                min-width: 45%;
+            }
+            
+            .data-head {
+                font-size: 24px;
+            }
+            
+            .section-title {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="current-time" id="current-time"></div>
+
+    <div class="data-head">ESP32 Environment Monitor - Real Time Data</div>
+
+    <!-- Real-time Data Display -->
+    <div class="data-container">
+        <!-- Row 1: Temperature and Humidity -->
+        <div class="data-row temp-hum-row">
+            <div class="data-item">
+                <h1>Temperature</h1>
+                <p id="temp">--°C</p>
+                <small id="temp-time">Last updated: --</small>
+                <small id="temp-freshness">Data age: --</small>
+            </div>
+            <div class="data-item">
+                <h2>Humidity</h2>
+                <p id="hum">--%</p>
+                <small id="humi-time">Last updated: --</small>
+                <small id="humi-freshness">Data age: --</small>
+            </div>
+        </div>
+        
+        <!-- Row 2: PM2.5 Dust and Gas Level -->
+        <div class="data-row dust-gas-row">
+            <div class="data-item">
+                <h3>PM2.5 Dust</h3>
+                <p id="dust">-- µg/m³</p>
+                <small id="dust-time">Last updated: --</small>
+                <small id="dust-freshness">Data age: --</small>
+            </div>
+            <div class="data-item">
+                <h4>Gas Level</h4>
+                <p id="gas">--</p>
+                <small id="gas-time">Last updated: --</small>
+                <small id="gas-freshness">Data age: --</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="section-title">Environmental Data Over Time</div>
+        
+        <!-- Row 1: Temperature and Humidity Charts -->
+        <div class="chart-row">
+            <div class="chart-container">
+                <canvas id="temperatureChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Row 2: Dust and Gas Charts -->
+        <div class="chart-row">
+            <div class="chart-container">
+                <canvas id="dustChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="gasChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Combined Chart -->
+        <div class="section-title">All Data Combined</div>
+        <div class="chart-row">
+            <div class="chart-container-full">
+                <canvas id="combinedChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data History Table -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Temperature (°C)</th>
+                    <th>Humidity (%)</th>
+                    <th>PM2.5 (µg/m³)</th>
+                    <th>Gas Level</th>
+                    <th>Temp Age (s)</th>
+                    <th>Humidity Age (s)</th>
+                    <th>Dust Age (s)</th>
+                    <th>Gas Age (s)</th>
+                </tr>
+            </thead>
+            <tbody id="history-table">
+                <!-- Data rows will be appended dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyDp8PLDJ11mhH0PqrjKQEK98m5ILoomVIw",
+          authDomain: "quantrac-8968e.firebaseapp.com",
+          databaseURL: "https://quantrac-8968e-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "quantrac-8968e",
+          storageBucket: "quantrac-8968e.firebasestorage.app",
+          messagingSenderId: "1005624112633",
+          appId: "1:1005624112633:web:8314a2ae728a51ad447928",
+          measurementId: "G-GQ9T8PVM2N"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Reference to the database paths
+        const temperatureRef = database.ref('/sensor_data/temperature');
+        const humidityRef = database.ref('/sensor_data/humidity');
+        const dustRef = database.ref('/sensor_data/dust');
+        const gasRef = database.ref('/sensor_data/gas');
+
+        // Data age variables
+        let temperatureAge = 0;
+        let humidityAge = 0;
+        let dustAge = 0;
+        let gasAge = 0;
+
+        // Data arrays for charts
+        const timeLabels = [];
+        const tempData = [];
+        const humData = [];
+        const dustData = [];
+        const gasData = [];
+        const maxDataPoints = 20;
+
+        // Charts setup
+        const tempCtx = document.getElementById('temperatureChart').getContext('2d');
+        const humiCtx = document.getElementById('humidityChart').getContext('2d');
+        const dustCtx = document.getElementById('dustChart').getContext('2d');
+        const gasCtx = document.getElementById('gasChart').getContext('2d');
+        const combinedCtx = document.getElementById('combinedChart').getContext('2d');
+
+        // Mobile-optimized chart options
+        const mobileChartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                title: { 
+                    display: true, 
+                    text: '', // We'll set this per chart
+                    font: {
+                        size: 14
+                    }
+                }
+            },
+            scales: {
+                x: { 
+                    title: { 
+                        display: true, 
+                        text: 'Time',
+                        font: {
+                            size: 12
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                y: { 
+                    title: { 
+                        display: true, 
+                        text: '', // We'll set this per chart
+                        font: {
+                            size: 12
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            }
+        };
+
+        const temperatureChart = new Chart(tempCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: tempData,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...mobileChartOptions,
+                plugins: {
+                    ...mobileChartOptions.plugins,
+                    title: { 
+                        ...mobileChartOptions.plugins.title,
+                        text: 'Temperature Over Time'
+                    }
+                },
+                scales: {
+                    ...mobileChartOptions.scales,
+                    y: {
+                        ...mobileChartOptions.scales.y,
+                        title: {
+                            ...mobileChartOptions.scales.y.title,
+                            text: 'Temperature (°C)'
+                        }
+                    }
+                }
+            }
+        });
+
+        const humidityChart = new Chart(humiCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Humidity (%)',
+                    data: humData,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...mobileChartOptions,
+                plugins: {
+                    ...mobileChartOptions.plugins,
+                    title: { 
+                        ...mobileChartOptions.plugins.title,
+                        text: 'Humidity Over Time'
+                    }
+                },
+                scales: {
+                    ...mobileChartOptions.scales,
+                    y: {
+                        ...mobileChartOptions.scales.y,
+                        title: {
+                            ...mobileChartOptions.scales.y.title,
+                            text: 'Humidity (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        const dustChart = new Chart(dustCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'PM2.5 Dust (µg/m³)',
+                    data: dustData,
+                    borderColor: 'rgba(139, 69, 19, 1)',
+                    backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...mobileChartOptions,
+                plugins: {
+                    ...mobileChartOptions.plugins,
+                    title: { 
+                        ...mobileChartOptions.plugins.title,
+                        text: 'PM2.5 Dust Over Time'
+                    }
+                },
+                scales: {
+                    ...mobileChartOptions.scales,
+                    y: {
+                        ...mobileChartOptions.scales.y,
+                        title: {
+                            ...mobileChartOptions.scales.y.title,
+                            text: 'PM2.5 (µg/m³)'
+                        }
+                    }
+                }
+            }
+        });
+
+        const gasChart = new Chart(gasCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Gas Level',
+                    data: gasData,
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...mobileChartOptions,
+                plugins: {
+                    ...mobileChartOptions.plugins,
+                    title: { 
+                        ...mobileChartOptions.plugins.title,
+                        text: 'Gas Level Over Time'
+                    }
+                },
+                scales: {
+                    ...mobileChartOptions.scales,
+                    y: {
+                        ...mobileChartOptions.scales.y,
+                        title: {
+                            ...mobileChartOptions.scales.y.title,
+                            text: 'Gas Level'
+                        }
+                    }
+                }
+            }
+        });
+
+        const combinedChart = new Chart(combinedCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [
+                    {
+                        label: 'Temperature (°C)',
+                        data: tempData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: humData,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'PM2.5 Dust (µg/m³)',
+                        data: dustData,
+                        borderColor: 'rgba(139, 69, 19, 1)',
+                        backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Gas Level',
+                        data: gasData,
+                        borderColor: 'rgba(255, 206, 86, 1)',
+                        backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: 'All Environmental Data Combined',
+                        font: {
+                            size: 14
+                        }
+                    }
+                },
+                scales: {
+                    x: { 
+                        title: { 
+                            display: true, 
+                            text: 'Time',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { 
+                            display: true, 
+                            text: 'Temperature & Humidity',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { 
+                            display: true, 
+                            text: 'PM2.5 & Gas Level',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Function to add data to all charts
+        function addDataToCharts(label, temp, hum, dust, gas) {
+            // Manage data points limit
+            if (timeLabels.length >= maxDataPoints) {
+                timeLabels.shift();
+                tempData.shift();
+                humData.shift();
+                dustData.shift();
+                gasData.shift();
+            }
+            
+            // Add new data
+            timeLabels.push(label);
+            tempData.push(temp);
+            humData.push(hum);
+            dustData.push(dust);
+            gasData.push(gas);
+            
+            // Update all charts
+            temperatureChart.update();
+            humidityChart.update();
+            dustChart.update();
+            gasChart.update();
+            combinedChart.update();
+        }
+
+        // Update table with new data
+        function updateTable(timestamp, temp, hum, dust, gas) {
+            const table = document.getElementById('history-table');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${timestamp}</td>
+                <td>${temp}</td>
+                <td>${hum}</td>
+                <td>${dust}</td>
+                <td>${gas}</td>
+                <td>${temperatureAge.toFixed(1)}</td>
+                <td>${humidityAge.toFixed(1)}</td>
+                <td>${dustAge.toFixed(1)}</td>
+                <td>${gasAge.toFixed(1)}</td>
+            `;
+            
+            // Add new row at the top
+            if (table.firstChild) {
+                table.insertBefore(row, table.firstChild);
+            } else {
+                table.appendChild(row);
+            }
+            
+            // Limit table rows to 50
+            if (table.children.length > 50) {
+                table.removeChild(table.lastChild);
+            }
+        }
+
+        // Update data freshness every second
+        setInterval(() => {
+            temperatureAge += 1;
+            humidityAge += 1;
+            dustAge += 1;
+            gasAge += 1;
+
+            // Update freshness displays
+            updateFreshnessDisplay('temp-freshness', temperatureAge);
+            updateFreshnessDisplay('humi-freshness', humidityAge);
+            updateFreshnessDisplay('dust-freshness', dustAge);
+            updateFreshnessDisplay('gas-freshness', gasAge);
+        }, 1000);
+
+        function updateFreshnessDisplay(elementId, age) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `Data age: ${age.toFixed(1)}s`;
+            
+            // Change color based on data age
+            if (age > 30) {
+                element.className = 'alert';
+            } else if (age > 15) {
+                element.style.color = 'orange';
+            } else {
+                element.style.color = 'green';
+            }
+        }
+
+        // Update UI function
+        function updateUI(elementId, value, unit = '', timestampId = null, freshnessId = null) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = value + unit;
+            }
+            
+            if (timestampId) {
+                const currentTime = new Date().toLocaleTimeString();
+                document.getElementById(timestampId).innerHTML = `Last updated: ${currentTime}`;
+            }
+            
+            // Reset freshness counter when new data arrives
+            if (freshnessId === 'temp-freshness') {
+                temperatureAge = 0;
+            } else if (freshnessId === 'humi-freshness') {
+                humidityAge = 0;
+            } else if (freshnessId === 'dust-freshness') {
+                dustAge = 0;
+            } else if (freshnessId === 'gas-freshness') {
+                gasAge = 0;
+            }
+        }
+
+        // Real-time data listeners
+        temperatureRef.on('value', (snapshot) => {
+            const temp = snapshot.val();
+            if (temp !== null) {
+                const currentTime = new Date().toLocaleTimeString();
+                updateUI('temp', temp, '°C', 'temp-time', 'temp-freshness');
+                
+                // Highlight if temperature is extreme
+                const tempElement = document.getElementById('temp');
+                if (temp > 35 || temp < 10) {
+                    tempElement.className = 'alert';
+                } else {
+                    tempElement.className = 'normal';
+                }
+            }
+        });
+
+        humidityRef.on('value', (snapshot) => {
+            const hum = snapshot.val();
+            if (hum !== null) {
+                const currentTime = new Date().toLocaleTimeString();
+                updateUI('hum', hum, '%', 'humi-time', 'humi-freshness');
+                
+                // Highlight if humidity is extreme
+                const humElement = document.getElementById('hum');
+                if (hum > 80 || hum < 30) {
+                    humElement.className = 'alert';
+                } else {
+                    humElement.className = 'normal';
+                }
+            }
+        });
+
+        dustRef.on('value', (snapshot) => {
+            const dust = snapshot.val();
+            if (dust !== null) {
+                const currentTime = new Date().toLocaleTimeString();
+                updateUI('dust', dust, ' µg/m³', 'dust-time', 'dust-freshness');
+                
+                // Highlight if dust level is high
+                const dustElement = document.getElementById('dust');
+                if (dust > 35) {
+                    dustElement.className = 'alert';
+                } else {
+                    dustElement.className = 'normal';
+                }
+            }
+        });
+
+        gasRef.on('value', (snapshot) => {
+            const gas = snapshot.val();
+            if (gas !== null) {
+                const currentTime = new Date().toLocaleTimeString();
+                updateUI('gas', gas, '', 'gas-time', 'gas-freshness');
+                
+                // Highlight if gas level is high
+                const gasElement = document.getElementById('gas');
+                if (gas > 1800) {
+                    gasElement.className = 'alert';
+                } else {
+                    gasElement.className = 'normal';
+                }
+            }
+        });
+
+        // Combined update for all data (update every 5 seconds)
+        setInterval(() => {
+            Promise.all([
+                temperatureRef.get().then(snap => snap.val()),
+                humidityRef.get().then(snap => snap.val()),
+                dustRef.get().then(snap => snap.val()),
+                gasRef.get().then(snap => snap.val())
+            ]).then(([temp, hum, dust, gas]) => {
+                if (temp !== null && hum !== null && dust !== null && gas !== null) {
+                    const currentTime = new Date().toLocaleTimeString();
+                    
+                    // Add data to all charts
+                    addDataToCharts(currentTime, temp, hum, dust, gas);
+                    
+                    // Update table
+                    updateTable(currentTime, temp, hum, dust, gas);
+                }
+            }).catch(error => {
+                console.error('Error fetching data for table:', error);
+            });
+        }, 5000);
+
+        // Real-time clock
+        function displayClock() {
+            const currentTimeElement = document.getElementById('current-time');
+            setInterval(() => {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                currentTimeElement.textContent = `${hours}:${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        displayClock();
+    </script>
+</body>
+</html>
