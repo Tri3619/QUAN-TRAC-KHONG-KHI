@@ -192,7 +192,7 @@
             background-color: #e8f4ff;
         }
         
-        .dust-gas-row .data-item {
+        .dust-CO2-row .data-item {
             background-color: #fff0e8;
         }
         
@@ -251,8 +251,8 @@
             </div>
         </div>
         
-        <!-- Row 2: PM2.5 Dust and Gas Level -->
-        <div class="data-row dust-gas-row">
+        <!-- Row 2: PM2.5 Dust and CO2 (ppm) -->
+        <div class="data-row dust-CO2-row">
             <div class="data-item">
                 <h3>PM2.5 Dust</h3>
                 <p id="dust">-- µg/m³</p>
@@ -260,10 +260,10 @@
                 <small id="dust-freshness">Data age: --</small>
             </div>
             <div class="data-item">
-                <h4>Gas Level</h4>
-                <p id="gas">--</p>
-                <small id="gas-time">Last updated: --</small>
-                <small id="gas-freshness">Data age: --</small>
+                <h4>CO2 (ppm)</h4>
+                <p id="CO2">--</p>
+                <small id="CO2-time">Last updated: --</small>
+                <small id="CO2-freshness">Data age: --</small>
             </div>
         </div>
     </div>
@@ -282,13 +282,13 @@
             </div>
         </div>
         
-        <!-- Row 2: Dust and Gas Charts -->
+        <!-- Row 2: Dust and CO2 Charts -->
         <div class="chart-row">
             <div class="chart-container">
                 <canvas id="dustChart"></canvas>
             </div>
             <div class="chart-container">
-                <canvas id="gasChart"></canvas>
+                <canvas id="CO2Chart"></canvas>
             </div>
         </div>
         
@@ -310,11 +310,11 @@
                     <th>Temperature (°C)</th>
                     <th>Humidity (%)</th>
                     <th>PM2.5 (µg/m³)</th>
-                    <th>Gas Level</th>
+                    <th>CO2 (ppm)</th>
                     <th>Temp Age (s)</th>
                     <th>Humidity Age (s)</th>
                     <th>Dust Age (s)</th>
-                    <th>Gas Age (s)</th>
+                    <th>CO2 Age (s)</th>
                 </tr>
             </thead>
             <tbody id="history-table">
@@ -347,27 +347,27 @@
         const temperatureRef = database.ref('/sensor_data/temperature');
         const humidityRef = database.ref('/sensor_data/humidity');
         const dustRef = database.ref('/sensor_data/dust');
-        const gasRef = database.ref('/sensor_data/gas');
+        const CO2Ref = database.ref('/sensor_data/CO2');
 
         // Data age variables
         let temperatureAge = 0;
         let humidityAge = 0;
         let dustAge = 0;
-        let gasAge = 0;
+        let CO2Age = 0;
 
         // Data arrays for charts
         const timeLabels = [];
         const tempData = [];
         const humData = [];
         const dustData = [];
-        const gasData = [];
+        const CO2Data = [];
         const maxDataPoints = 20;
 
         // Charts setup
         const tempCtx = document.getElementById('temperatureChart').getContext('2d');
         const humiCtx = document.getElementById('humidityChart').getContext('2d');
         const dustCtx = document.getElementById('dustChart').getContext('2d');
-        const gasCtx = document.getElementById('gasChart').getContext('2d');
+        const CO2Ctx = document.getElementById('CO2Chart').getContext('2d');
         const combinedCtx = document.getElementById('combinedChart').getContext('2d');
 
         // Mobile-optimized chart options
@@ -530,13 +530,13 @@
             }
         });
 
-        const gasChart = new Chart(gasCtx, {
+        const CO2Chart = new Chart(CO2Ctx, {
             type: 'line',
             data: {
                 labels: timeLabels,
                 datasets: [{
-                    label: 'Gas Level',
-                    data: gasData,
+                    label: 'CO2 (ppm)',
+                    data: CO2Data,
                     borderColor: 'rgba(255, 206, 86, 1)',
                     backgroundColor: 'rgba(255, 206, 86, 0.1)',
                     borderWidth: 2,
@@ -550,7 +550,7 @@
                     ...mobileChartOptions.plugins,
                     title: { 
                         ...mobileChartOptions.plugins.title,
-                        text: 'Gas Level Over Time'
+                        text: 'CO2 (ppm) Over Time'
                     }
                 },
                 scales: {
@@ -559,7 +559,7 @@
                         ...mobileChartOptions.scales.y,
                         title: {
                             ...mobileChartOptions.scales.y.title,
-                            text: 'Gas Level'
+                            text: 'CO2 (ppm)'
                         }
                     }
                 }
@@ -602,8 +602,8 @@
                         yAxisID: 'y1'
                     },
                     {
-                        label: 'Gas Level',
-                        data: gasData,
+                        label: 'CO2 (ppm)',
+                        data: CO2Data,
                         borderColor: 'rgba(255, 206, 86, 1)',
                         backgroundColor: 'rgba(255, 206, 86, 0.1)',
                         borderWidth: 2,
@@ -674,7 +674,7 @@
                         position: 'right',
                         title: { 
                             display: true, 
-                            text: 'PM2.5 & Gas Level',
+                            text: 'PM2.5 & CO2 (ppm)',
                             font: {
                                 size: 12
                             }
@@ -691,14 +691,14 @@
         });
 
         // Function to add data to all charts
-        function addDataToCharts(label, temp, hum, dust, gas) {
+        function addDataToCharts(label, temp, hum, dust, CO2) {
             // Manage data points limit
             if (timeLabels.length >= maxDataPoints) {
                 timeLabels.shift();
                 tempData.shift();
                 humData.shift();
                 dustData.shift();
-                gasData.shift();
+                CO2Data.shift();
             }
             
             // Add new data
@@ -706,18 +706,18 @@
             tempData.push(temp);
             humData.push(hum);
             dustData.push(dust);
-            gasData.push(gas);
+            CO2Data.push(CO2);
             
             // Update all charts
             temperatureChart.update();
             humidityChart.update();
             dustChart.update();
-            gasChart.update();
+            CO2Chart.update();
             combinedChart.update();
         }
 
         // Update table with new data
-        function updateTable(timestamp, temp, hum, dust, gas) {
+        function updateTable(timestamp, temp, hum, dust, CO2) {
             const table = document.getElementById('history-table');
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -725,11 +725,11 @@
                 <td>${temp}</td>
                 <td>${hum}</td>
                 <td>${dust}</td>
-                <td>${gas}</td>
+                <td>${CO2}</td>
                 <td>${temperatureAge.toFixed(1)}</td>
                 <td>${humidityAge.toFixed(1)}</td>
                 <td>${dustAge.toFixed(1)}</td>
-                <td>${gasAge.toFixed(1)}</td>
+                <td>${CO2Age.toFixed(1)}</td>
             `;
             
             // Add new row at the top
@@ -750,13 +750,13 @@
             temperatureAge += 1;
             humidityAge += 1;
             dustAge += 1;
-            gasAge += 1;
+            CO2Age += 1;
 
             // Update freshness displays
             updateFreshnessDisplay('temp-freshness', temperatureAge);
             updateFreshnessDisplay('humi-freshness', humidityAge);
             updateFreshnessDisplay('dust-freshness', dustAge);
-            updateFreshnessDisplay('gas-freshness', gasAge);
+            updateFreshnessDisplay('CO2-freshness', CO2Age);
         }, 1000);
 
         function updateFreshnessDisplay(elementId, age) {
@@ -792,8 +792,8 @@
                 humidityAge = 0;
             } else if (freshnessId === 'dust-freshness') {
                 dustAge = 0;
-            } else if (freshnessId === 'gas-freshness') {
-                gasAge = 0;
+            } else if (freshnessId === 'CO2-freshness') {
+                CO2Age = 0;
             }
         }
 
@@ -846,18 +846,18 @@
             }
         });
 
-        gasRef.on('value', (snapshot) => {
-            const gas = snapshot.val();
-            if (gas !== null) {
+        CO2Ref.on('value', (snapshot) => {
+            const CO2 = snapshot.val();
+            if (CO2 !== null) {
                 const currentTime = new Date().toLocaleTimeString();
-                updateUI('gas', gas, '', 'gas-time', 'gas-freshness');
+                updateUI('CO2', CO2, '', 'CO2-time', 'CO2-freshness');
                 
-                // Highlight if gas level is high
-                const gasElement = document.getElementById('gas');
-                if (gas > 1800) {
-                    gasElement.className = 'alert';
+                // Highlight if CO2 (ppm) is high
+                const CO2Element = document.getElementById('CO2');
+                if (CO2 > 1800) {
+                    CO2Element.className = 'alert';
                 } else {
-                    gasElement.className = 'normal';
+                    CO2Element.className = 'normal';
                 }
             }
         });
@@ -868,16 +868,16 @@
                 temperatureRef.get().then(snap => snap.val()),
                 humidityRef.get().then(snap => snap.val()),
                 dustRef.get().then(snap => snap.val()),
-                gasRef.get().then(snap => snap.val())
-            ]).then(([temp, hum, dust, gas]) => {
-                if (temp !== null && hum !== null && dust !== null && gas !== null) {
+                CO2Ref.get().then(snap => snap.val())
+            ]).then(([temp, hum, dust, CO2]) => {
+                if (temp !== null && hum !== null && dust !== null && CO2 !== null) {
                     const currentTime = new Date().toLocaleTimeString();
                     
                     // Add data to all charts
-                    addDataToCharts(currentTime, temp, hum, dust, gas);
+                    addDataToCharts(currentTime, temp, hum, dust, CO2);
                     
                     // Update table
-                    updateTable(currentTime, temp, hum, dust, gas);
+                    updateTable(currentTime, temp, hum, dust, CO2);
                 }
             }).catch(error => {
                 console.error('Error fetching data for table:', error);
